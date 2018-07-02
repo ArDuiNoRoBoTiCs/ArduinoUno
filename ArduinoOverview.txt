@@ -1,0 +1,119 @@
+
+What we know about the Arduino Uno Robot:
+
+The Arduino Uno board is the bottom board, connected to the chasis. This contains the brain (the ATmega328P microcontroller) that stores and executes the instructions that we give it. It has a bunch of input/output pins that we can programmatically read and write from.
+
+The IO Expansion board is the board mounted on top of that, that connects to all the pins of the Uno board. This appears to be a custom board that Elegoo made, just for this robot. It does not have any real smarts in it; it mostly just maps all the input/output pins from the Uno board (underneath it) to other pins (on top of it). These other pins are physically configured to fit specific plugs into some of the components of this robot - the battery pack, the motors, etc. 
+
+Part of experimenting with this robot is figuring out where all the pins that we can control from the microcontroller are physically wired to, and what sort of signals are supposed to be sent in order to control/listen to those components.
+
+================
+PINS On THE UNO:
+================
+
+* Power Lines:
+These lines are not programmatically controlled, but provide the power for the rest of the circuits.
+
+IOREF: Dont know what this is.
+
+Reset: Dont know what this is. Something to do with the reset button?
+
+3.3V: Reference output 3.3V line. There are various types of circuits that entail looping a 5 volt line back into one of the digital i/o pins, so this is here in case you want to do that. Only needed if adding custom circuits.
+
+5V: Reference output 5 volt line. There are various types of circuits that entail looping a 5 volt line back into one of the digital i/o pins, so this is here in case you want to do that. Only needed if adding custom circuits.
+
+GND: When creating add-on circuits, you always need a loop, so this is the ground line when you pull from the 5v or 3.3v line. Note that there are multiple pins marked GND. Hardwired to the GND pin on the IO Expansion Board, where the battery pack is connected.
+
+Vin: This is where we need to supply the input voltage (I believe 5 volts). Hardwired to the Vin pin on the IO Expansion Board, where the battery pack is connected.
+
+AREF: Dont know what this is.
+
+
+* 6 Analog Input Pins:
+ - 10-bit values can be read from these pins (2 to the 10th power, or any value between 0 and 1023), using the analogRead() call. It basically reads the input voltage; if its 5 volts, then an analogRead() from the pin would give us 1023. If the pin has 0 volts on it, the analogRead() would return a 0. If the voltage is halfway (2.5 volts), the analogRead() would give us 512.
+ - Alternatively, the analog pins can be used with the digitalRead/digitalWrite calls, and essentially become extra digital pins. (Can never write analog, however.) Use the alias A0-A5.
+
+A0-A3: Appears to be hooked up to be IO section of the Expansion Board. Open and available, each with a corresponding 5V and GND line. If we wanted to hook up extra sensors, this is where we could do it.
+
+A4-A5: Appear to be hooked up to the ultrasonic sensor. Don't know how it works yet!
+
+* 14 Digital Input/Output Pins (PMW) 
+- 1-bit values can be written/read on any of these pins by calling digitalRead/digitalWrite with a value of 0 (LOW) or 1 (HIGH).
+- 8-bit values can be written through Pulse-Width Modulation (PMW) by calling analogWrite with a value from 0 to 255 (2 to the 8th power). This doesn't work on every one of the digital pins; it only works on pins 3, 5, 6, 9, 10, and 11.
+
+- While specific digital pins are wired to specific components on the Expansion Board; In addition, each digital pin has a separate pin-out on the Expansion Board. 
+
+D0: RX: Receive Data; I think this is used for the serial USB communications? Also shared by the Bluetooth module on the Expansion Board.
+
+D1: TX: Transmit Data; I think this is used for the serial USB communications? Also shared by the Bluetooth module on the Expansion Board.
+
+D2: Line Tracking Module: Dont know how it works yet.
+
+D3: Servo Control: Can rotate the servo 180 degrees. The angle of the servo is set by sending a series of pulses every 20 ms. The width of the pulse determines the angle; a width of 0.5ms sets it to 0 degrees; a pulse of 2.5ms sets it to 180 degrees. (There's a software library available that allows you to just set the angle, and the library takes care of sending the pulses.)
+
+D4: Line Tracking Module: Dont know how it works yet.
+
+D5: Motor Control, Left: ENA to L298 (see L298 description)
+
+D6: Motor Control, Right: ENB to L298 (see L298 description)
+
+D7: Motor Control, Left: IN1 to L298 (see L298 description)
+
+D8: Motor Control, Left: IN2 to L298 (see L298 description)
+
+D9: Motor Control, Right: IN3 to L298 (see L298 description)
+
+D10: Line Tracking Module: Dont know how it works yet.
+
+D11: Motor Control, Right: IN4 to L298 (see L298 description)
+
+D12: Infrared Sensor: Dont know how it works yet.
+
+D13: Hard wired to the LED on the UNO Board; also wired up to the LED on the top left of the IO Expansion Board. You make the LED blink by setting this pin to 0 or 1.
+
+
+============
+L298 Module: 
+============
+This is a special module designed for controlling motors. It has 6 digital inputs, 3 that control the left side, and another 3 that control the right side. This is connected to the "L298N_CONTROL" port on the IO Expansion Board, which is then hardwired to digital Pins 5,6,7,8,9, and 11 on the UNO board. The output of the those Pins on the UNO connect to the input pins on the L298, which in turn control how voltage is applied to the motors, which turns them on and off (as well as controls the direction and speed of the spin). 
+
+Here's how these pins work:
+ - You cannot individually control the left-front and left-rear motors (nor the right-front and right-rear motors); You can atomically control "the left side" and "the right side".
+
+- ENA (pin 5) controls the SPEED of the 2 left motors. You can set it to any value from 0 to 255 to control the speed of those motors; 0 if off, 255 is maximum RPM. 128 would be half speed.
+
+- IN1 (7) & IN2 (8) work together to control the DIRECTION of the 2 left motors, which can have 4  different values: brake, coast, forward, and backward. When IN1 and IN2 are both set to LOW, it is set to coast; when both set to HI, the motors are braked. If IN1 is HI, and IN2 is LOW, the motors spin forward. If IN1 is LOW, and IN2 is HI, the motors spin backward.
+
+- ENB (6) has the same effect on the 2 right motors as ENA has on the left.
+ 
+- IN3 (9) & IN4 (11) control the direction of the 2 right motors, similar to how IN1 & IN2 work for the left side. However, the directions are reversed; If IN3 is HI, and IN4 is LOW, the motors spin backward. If IN3 is LOW, and IN4 is HI, the motors spin forward.
+
+- Here's the full table of possibilities based on the values of 6 pins, from the Arduino UNO tutorial:
+ 
+ENA   ENB   IN1   IN2   IN3   IN4   Description  
+HIGH  HIGH  HIGH  LOW   LOW   HIGH  Car is runing forward
+HIGH  HIGH  LOW   HIGH  HIGH  LOW   Car is runing back
+HIGH  HIGH  LOW   HIGH  LOW   HIGH  Car is turning left
+HIGH  HIGH  HIGH  LOW   HIGH  LOW   Car is turning right
+HIGH  HIGH  LOW   LOW   LOW   LOW   Car is coasting
+HIGH  HIGH  HIGH  HIGH  HIGH  HIGH  Car is braking
+LOW   LOW   N/A   N/A   N/A   N/A   Car is stoped
+ 
+ 
+
+=========
+Open Questions:
+=============
+
+* How does serial communications work? When you use the bluetooth module, how does that affect the USB connection?
+
+=============
+References:
+==============
+
+Book: Arduino Cookbook by Michael Margolis
+
+Web: https://en.wikipedia.org/wiki/Arduino_Uno
+Web: https://en.wikipedia.org/wiki/ATmega328
+
+[NOTE: looks like pin 9 and 11 are capable of 8-bit PWM, per https://en.wikipedia.org/wiki/Arduino_Uno; but we have it hard-wired to the h-bridge, so wil only use it digitally.
